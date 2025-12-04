@@ -1,5 +1,8 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20-alpine3.20 AS builder 
+
+# Update packages to patch vulnerabilities
+RUN apk update && apk upgrade --no-cache
 
 WORKDIR /app
 
@@ -16,7 +19,10 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM nginx:alpine
+FROM nginx:1-alpine
+
+# Update packages to patch vulnerabilities
+RUN apk update && apk upgrade --no-cache
 
 # Copy built files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
