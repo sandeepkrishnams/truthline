@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: truthline-postgres
+    environment:
+      POSTGRES_USER: truthline
+      POSTGRES_PASSWORD: truthline_password
+      POSTGRES_DB: truthline_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U truthline"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - truthline-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: truthline-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - truthline-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: truthline-backend
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_RELOAD=false
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost
+      - DATABASE_URL=postgresql+asyncpg://truthline:truthline_password@postgres:5432/truthline_db
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - truthline-network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: truthline-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - truthline-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  truthline-network:
+    driver: bridge
+

@@ -1,0 +1,19 @@
+# Copy this file to docker-compose.override.yml to customize settings
+# This file is automatically loaded by docker-compose
+
+version: '3.8'
+
+services:
+  postgres:
+    environment:
+      # Override database credentials
+      POSTGRES_USER: your_user
+      POSTGRES_PASSWORD: your_password
+      POSTGRES_DB: your_database
+
+  backend:
+    environment:
+      # Override backend environment variables
+      - DATABASE_URL=postgresql+asyncpg://your_user:your_password@postgres:5432/your_database
+      - REDIS_URL=redis://redis:6379/0
+
